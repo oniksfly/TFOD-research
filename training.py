@@ -8,11 +8,17 @@ from pathlib import Path
 CUSTOM_MODEL_NAME = "my_ssd_mobnet"
 PRETRAINED_MODEL_NAME = "ssd_mobilenet_v2_320x320_coco17_tpu-8"
 PRETRAINED_MODEL_URL = "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz"
+LABELMAP_NAME = 'label_map.pbtxt'
 
 root_path = "Tensorflow"
 paths = {
     "APIMODEL_PATH": os.path.join(root_path, "models"),
+    "ANNOTATION_PATH": os.path.join(root_path, "workspace", 'annotations'),
     "PRETRAINED_MODEL_PATH": os.path.join(root_path, "workspace", "pre-trained-models")
+}
+
+files = {
+    'LABELMAP': os.path.join(paths['ANNOTATION_PATH'], LABELMAP_NAME)
 }
 
 for path in paths.values():
@@ -29,3 +35,32 @@ if not os.path.exists(os.path.join(paths["PRETRAINED_MODEL_PATH"], PRETRAINED_MO
     archive.extractall(paths["PRETRAINED_MODEL_PATH"])
     archive.close()
     os.remove(filename)
+
+labels = [
+    {
+        'name': 'ThumbsUp',
+        'id': 1
+    },
+    {
+        'name': 'ThumbsDown',
+        'id': 2
+    },
+    {
+        'name': 'ThankYou',
+        'id': 3
+    },
+    {
+        'name': 'LiveLong',
+        'id': 4
+    },
+]
+if not os.path.exists(files['LABELMAP']):
+    print("Creating label's map at {}".format(files['LABELMAP']))
+    file = open(files['LABELMAP'], 'w')
+
+    for label in labels:
+        file.write('item {\n')
+        file.write("\tname: '{}'\n".format(label['name']))
+        file.write("\tid: '{}'\n".format(label['id']))
+        file.write('}\n')
+    file.close()
