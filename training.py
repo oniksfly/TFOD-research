@@ -119,3 +119,14 @@ if not os.path.exists(files['PIPELINE_CONFIG']):
     config_text = text_format.MessageToString(pipeline_config)
     with tf.io.gfile.GFile(files['PIPELINE_CONFIG'], "wb") as f:                                                                                                                                                                                                                     
         f.write(config_text)
+
+
+# Generating model training command
+TRAINING_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'model_main_tf2.py')
+training_command = "python3 {} --model_dir={} --pipeline_config_path={} --num_train_steps=2000".format(TRAINING_SCRIPT, paths['CHECKPOINT_PATH'], files['PIPELINE_CONFIG'])
+print("To train model run: " + training_command)
+
+
+# Generating model metrics command
+metrics_command = "python3 {} --model_dir={} --pipeline_config_path={} --checkpoint_dir={}".format(TRAINING_SCRIPT, paths['CHECKPOINT_PATH'],files['PIPELINE_CONFIG'], paths['CHECKPOINT_PATH'])
+print("To check model metrics: " + metrics_command)

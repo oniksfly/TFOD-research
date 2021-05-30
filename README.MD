@@ -32,5 +32,19 @@ Verify installation: `python3 Tensorflow/models/research/object_detection/builde
 source ./bin/activate
 ```
 
-## How to use AMD GPU on Hackintosh
-https://kenthinson.com/machine-learning-with-gpu-on-mac-osx/ 
+# Analyze results 
+Use Tensorboard to check training and test results
+
+```bash
+tensorboard --logdir=Tensorflow/workspace/models/my_ssd_mobnet/train
+```
+
+```bash
+tensorboard --logdir=Tensorflow/workspace/models/my_ssd_mobnet/eval
+```
+
+# Links
+* [How to use AMD GPU on Hackintosh](https://kenthinson.com/machine-learning-with-gpu-on-mac-osx/)
+* [How to capture DSLR stream to webcam on Linux](https://medium.com/nerdery/dslr-webcam-setup-for-linux-9b6d1b79ae22)
+* [How to pass OpenCV images to FFMPEG](https://stackoverflow.com/questions/34167691/pipe-opencv-images-to-ffmpeg-using-python)
+
