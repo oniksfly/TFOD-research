@@ -2,7 +2,7 @@
 
 ## Setupp required packages
 ```bash
-pip3 install opencv-python pyqt5 lxml gitpython wget
+pip3 install opencv-python pyqt5 lxml gitpython wget Pillow rawkit
 ```
 
 ```bash
@@ -17,13 +17,18 @@ git clone https://github.com/tzutalin/labelImg.git Tensorflow/labels
 cd Tensorflow/labels && make qt5py3 && python3 labelImg.py
 ```
 
-### Setup TF2
+## Setup TF2
 ```bash
-brew install protobuf
+brew install protobuf libraw
 ```
 
 ```bash
 cd Tensorflow/models/research && protoc object_detection/protos/*.proto --python_out=. && cp object_detection/packages/tf2/setup.py . &&
+```
+
+## Setup DSLR requirements
+```bash
+brew install gphoto2
 ```
 
 Verify installation: `python3 Tensorflow/models/research/object_detection/builders/model_builder_tf2_test.py`
