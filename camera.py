@@ -1,7 +1,6 @@
 import os
 import cv2
-import io
-import numpy as np
+import shutil
 import datetime
 import subprocess as sp
 from PIL import Image
@@ -57,6 +56,41 @@ class Camera:
         else:
             return original_name
 
+    def set_shutter_speed_index(self, option_index: int) -> None:
+        """
+        Update camera's shutter speed value.
+        As argument accepts key of `get_shutter_speed_options()`
+
+        Parameters
+        ----------
+        option_index : int
+            Index of property's value
+        """
+
+        if option_index not in self.get_shutter_speed_options().keys():
+            raise ValueError("option_index is not available as property of `get_shutter_speed_options`")
+
+        sp.Popen(["gphoto2", "--set-config-index", "/main/capturesettings/shutterspeed={}".format(option_index)], stdout=sp.PIPE, stderr=sp.DEVNULL)
+
+
+    def get_shutter_speed_options(self) -> dict:
+        """ 
+        Get available shutterspeed options for current camera
+        Key is available to set as camera's param option (index)
+        Value is real-world value
+        """
+        result = {}
+        proc = sp.Popen(["gphoto2", "--get-config", "shutterspeed"], stdout=sp.PIPE, stderr=sp.DEVNULL)
+        output, _ = proc.communicate()
+        rc = proc.returncode
+
+        if rc == 0:
+            for option in output.decode("utf-8").split("\n"):
+                 if "Choice:" in option:
+                     values = option.replace('Choice: ', '').split()
+                     result[int(values[0])] = values[1]
+        
+        return result
 
     def capture_raw_file(self, name=None, path=None):
         proc = sp.Popen(["gphoto2", "--capture-image-and-download"], stdout=sp.PIPE, stderr=sp.DEVNULL)
@@ -75,7 +109,13 @@ class Camera:
                     new_name = name
 
                 new_file_name = Camera.convert_file_name(original=original_filename, new_name=new_name)
-                os.rename(original_filename, new_file_name)
+
+                if path == None:
+                    os.rename(original_filename, new_file_name)
+                else:
+                    new_path = os.path.join(path, new_file_name)
+                    shutil.move(original_filename, new_path)
+                    return new_path
 
                 return new_file_name
             else:
@@ -93,13 +133,16 @@ class Camera:
             image.save(compressed_file_name)
             raw_image.close()
 
-            
+            if not keep_raw:
+                os.remove(raw_file_name)
 
             return compressed_file_name
 
 
 i = Camera()
-i.capture_compressed_file()
+i.set_shutter_speed_index(26)
+i.capture_compressed_file(path="Camera")
+print(i.get_shutter_speed_options())
 
 # paths = {
 # }
