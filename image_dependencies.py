@@ -3,10 +3,12 @@ import cv2
 import uuid
 import os
 import time
+import camera
 from pathlib import Path
 
 labels = ['thumbsup', 'thumbsdown', 'thankyou', 'livelong']
-number_images = 5
+labels = ['thumbsup']
+number_images = 7
 
 IMAGES_PATH = os.path.join("Tensorflow", "workspace", "images", "collectedimages")
 IMAGES_TEST_PATH = os.path.join("Tensorflow", "workspace", "images", "test")
@@ -23,22 +25,11 @@ for label in labels:
     Path(sub_folder).mkdir(parents=True, exist_ok=True)
 
 if False: 
+    photos = camera.Camera()
     for label in labels:
-        cap = cv2.VideoCapture(0)
         print("Collecting images for {}".format(label))
-        time.sleep(5)
-
         for index in range(number_images):
             print("\tCollecting image {}".format(index))
 
-            ret, frame = cap.read()
-
-            image_path = os.path.join(IMAGES_PATH, label, "{}-{}.jpg".format(label, str(uuid.uuid1())))
-            cv2.imwrite(image_path, frame)
-            cv2.imshow('frame', frame)
-            time.sleep(2)
-        
-        cap.release()
-        cv2.destroyAllWindows()
-
-        
+            image_path = os.path.join(IMAGES_PATH, label)
+            photo = photos.capture_compressed_file("{}-{}".format(label, str(uuid.uuid1())), path=image_path, show_photo=True)        

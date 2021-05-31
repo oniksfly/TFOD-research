@@ -1,5 +1,4 @@
 import os
-import cv2
 import shutil
 import datetime
 import subprocess as sp
@@ -121,7 +120,21 @@ class Camera:
             else:
                 print("Can't get saved file name")
 
-    def capture_compressed_file(self, name=None, path=None, keep_raw=False):
+    def capture_compressed_file(self, name=None, path=None, keep_raw=False, show_photo=False) -> str:
+        """
+        Get compressed photo from camera
+        
+        Parameters
+        ----------
+        name : str
+            Save image with specified name. If None provided save with timestamp (Default None)
+        path : str
+            Save image in specified location. If None provided save in current directory (Default None)
+        keep_raw: bool
+            Store raw and comressed file. (Default False)
+        show_photo: bool
+            Display photo after shoot. (Default False)
+        """
         raw_file_name = self.capture_raw_file(name=name, path=path)
 
         if raw_file_name != None:
@@ -136,13 +149,22 @@ class Camera:
             if not keep_raw:
                 os.remove(raw_file_name)
 
+            if show_photo:
+                self.show_photo(compressed_file_name)
+
             return compressed_file_name
 
+    def show_photo(self, img_path: str) -> None:
+        """
+        Output image on screen
 
-i = Camera()
-i.set_shutter_speed_index(26)
-i.capture_compressed_file(path="Camera")
-print(i.get_shutter_speed_options())
+        Parameters
+        ----------
+        img_path : str
+            Image name or path to show
+        """
+        image = Image.open(img_path)
+        image.show()
 
 # paths = {
 # }
