@@ -5,7 +5,7 @@ import numpy as np
 import datetime
 import subprocess as sp
 from PIL import Image
-from rawkit.raw import Raw
+import rawpy
 
 class Camera:
     def __init__(self):
@@ -46,8 +46,8 @@ class Camera:
             original_name = str(original[:delimeter])
             original_extension = str(original[delimeter+1:])
 
-        if new_extension != None:
-            original_extension = new_extension
+        if new_name != None:
+            original_name = new_name
 
         if new_extension != None:
             original_extension = new_extension
@@ -81,15 +81,21 @@ class Camera:
             else:
                 print("Can't get saved file name")
 
-    def capture_compressed_file(self, name=None, path=None):
-        raw_file = self.capture_raw_file(name=name, path=path)
+    def capture_compressed_file(self, name=None, path=None, keep_raw=False):
+        raw_file_name = self.capture_raw_file(name=name, path=path)
 
-        if raw_file != None:
-            raw_image = Raw(raw_file)
-            buffered_image = np.array(raw_image.to_buffer())
-            image = Image.frombytes('RGB', (raw_image.metadata.width, raw_image.metadata.height), buffered_image)
-            image.save(Camera.convert_file_name(raw_file, new_extension="png"), format='png')
-    
+        if raw_file_name != None:
+            compressed_file_name = Camera.convert_file_name(raw_file_name, new_extension="jpg")
+
+            raw_image = rawpy.imread(raw_file_name)
+            rgb_image = raw_image.postprocess(use_camera_wb=True)
+            image = Image.fromarray(rgb_image)
+            image.save(compressed_file_name)
+            raw_image.close()
+
+            
+
+            return compressed_file_name
 
 
 i = Camera()

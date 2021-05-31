@@ -2,7 +2,7 @@
 
 ## Setupp required packages
 ```bash
-pip3 install opencv-python pyqt5 lxml gitpython wget Pillow rawkit
+pip3 install opencv-python pyqt5 lxml gitpython wget Pillow rawpy
 ```
 
 ```bash
