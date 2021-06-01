@@ -8,6 +8,7 @@ from git.repo.base import Repo
 from pathlib import Path
 from shutil import copyfile, rmtree
 from object_detection.protos import pipeline_pb2
+from object_detection.utils import config_util
 from google.protobuf import text_format
 
 CUSTOM_MODEL_NAME = "my_ssd_mobnet"
@@ -57,31 +58,33 @@ def create_tf_record(record_path: str, images_path: str, override=False) -> None
         "-o" + record_path
     ])
 
-def train_tf_custom_model(train_steps=2000):
+def train_tf_custom_model(train_steps=2000, override=False):
     if not os.path.exists(files['TRAINING_SCRIPT']):
         print("Error! Base model doesn't exists")
         return
 
-    subprocess.call([
-        sys.executable, 
-        files['TRAINING_SCRIPT'], 
-        "--model_dir=" + paths['CHECKPOINT_PATH'],
-        "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
-        "--num_train_steps=" + str(train_steps)
-    ])
+    if override or not os.path.exists(os.path.join(paths['CHECKPOINT_PATH'], "checkpoint")):
+        subprocess.call([
+            sys.executable, 
+            files['TRAINING_SCRIPT'], 
+            "--model_dir=" + paths['CHECKPOINT_PATH'],
+            "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
+            "--num_train_steps=" + str(train_steps)
+        ])
 
-def eval_tf_custom_model():
+def eval_tf_custom_model(override=False):
     if not os.path.exists(files['TRAINING_SCRIPT']):
         print("Error! Base model doesn't exists")
         return
 
-    subprocess.call([
-        sys.executable, 
-        files['TRAINING_SCRIPT'], 
-        "--model_dir=" + paths['CHECKPOINT_PATH'],
-        "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
-        "--checkpoint_dir=" + paths['CHECKPOINT_PATH']
-    ])
+    if override or not os.path.exists(os.path.join(paths['CHECKPOINT_PATH'], "eval")):
+        subprocess.call([
+            sys.executable, 
+            files['TRAINING_SCRIPT'], 
+            "--model_dir=" + paths['CHECKPOINT_PATH'],
+            "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
+            "--checkpoint_dir=" + paths['CHECKPOINT_PATH']
+        ])
 
 # Remove previous trained model
 if retrain and os.path.exists(paths['CHECKPOINT_PATH']):
@@ -165,7 +168,7 @@ if not os.path.exists(files['PIPELINE_CONFIG']):
 
 
 # Generating model training command
-train_tf_custom_model()
+train_tf_custom_model(override=retrain)
 
 # Generating model metrics command
-eval_tf_custom_model()
+eval_tf_custom_model(override=retrain)
