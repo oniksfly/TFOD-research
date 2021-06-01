@@ -2,9 +2,11 @@ import os
 import tensorflow as tf
 import wget
 import tarfile
+import sys
+import subprocess
 from git.repo.base import Repo
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from object_detection.utils import config_util
 from object_detection.protos import pipeline_pb2
 from google.protobuf import text_format
@@ -14,6 +16,12 @@ PRETRAINED_MODEL_NAME = "ssd_mobilenet_v2_320x320_coco17_tpu-8"
 PRETRAINED_MODEL_URL = "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz"
 LABELMAP_NAME = 'label_map.pbtxt'
 TF_RECORD_SCRIPT_NAME = "generate_tfrecord.py"
+
+retrain = False
+if len(sys.argv) > 0 and 'retrain' in sys.argv:
+    print("Model will be retrained")
+    retrain = True
+
 
 root_path = "Tensorflow"
 paths = {
@@ -27,8 +35,59 @@ paths = {
 files = {
     'LABELMAP': os.path.join(paths['ANNOTATION_PATH'], LABELMAP_NAME),
     'TF_RECORD_SCRIPT': TF_RECORD_SCRIPT_NAME,
-    'PIPELINE_CONFIG': os.path.join(paths['CHECKPOINT_PATH'], 'pipeline.config')
+    'PIPELINE_CONFIG': os.path.join(paths['CHECKPOINT_PATH'], 'pipeline.config'),
+    'TRAIN_RECORD': os.path.join(paths['ANNOTATION_PATH'], 'train.record'),
+    'TEST_RECORD': os.path.join(paths['ANNOTATION_PATH'], 'test.record'),
+    'TRAINING_SCRIPT': os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'model_main_tf2.py')
 }
+
+def create_tf_record(record_path: str, images_path: str, override=False) -> None:
+    if os.path.exists(record_path):
+        if override:
+            os.remove(record_path)
+        else:
+            return
+
+    print("Generating TF record at " + record_path)
+
+    subprocess.call([
+        sys.executable, 
+        files['TF_RECORD_SCRIPT'], 
+        "-x" + images_path,
+        "-l" + files['LABELMAP'],
+        "-o" + record_path
+    ])
+
+def train_tf_custom_model(train_steps=2000):
+    if not os.path.exists(files['TRAINING_SCRIPT']):
+        print("Error! Base model doesn't exists")
+        return
+
+    subprocess.call([
+        sys.executable, 
+        files['TRAINING_SCRIPT'], 
+        "--model_dir=" + paths['CHECKPOINT_PATH'],
+        "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
+        "--num_train_steps=" + str(train_steps)
+    ])
+
+def eval_tf_custom_model():
+    if not os.path.exists(files['TRAINING_SCRIPT']):
+        print("Error! Base model doesn't exists")
+        return
+
+    subprocess.call([
+        sys.executable, 
+        files['TRAINING_SCRIPT'], 
+        "--model_dir=" + paths['CHECKPOINT_PATH'],
+        "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
+        "--checkpoint_dir=" + paths['CHECKPOINT_PATH']
+    ])
+
+# Remove previous trained model
+if retrain and os.path.exists(paths['CHECKPOINT_PATH']):
+    print("Remove previously trained model at path " + paths['CHECKPOINT_PATH'])
+    rmtree(paths['CHECKPOINT_PATH'])
 
 for path in paths.values():
     Path(path).mkdir(parents=True, exist_ok=True)
@@ -74,23 +133,9 @@ if not os.path.exists(files['LABELMAP']):
         file.write('}\n')
     file.close()
 
-
-train_tf_command = "python3 {} -x {} -l {} -o {}".format(
-    files['TF_RECORD_SCRIPT'],
-    os.path.join(paths['IMAGE_PATH'], 'train'),
-    files['LABELMAP'],
-    os.path.join(paths['ANNOTATION_PATH'], 'train.record')
-)
-
-test_tf_command = "python3 {} -x {} -l {} -o {}".format(
-    files['TF_RECORD_SCRIPT'],
-    os.path.join(paths['IMAGE_PATH'], 'test'),
-    files['LABELMAP'],
-    os.path.join(paths['ANNOTATION_PATH'], 'test.record')
-)
-
-print("Run to get TF train records: `{}`".format(train_tf_command))
-print("Run to get TF test records: `{}`".format(test_tf_command))
+# Create TF records from labels and images
+create_tf_record(files['TRAIN_RECORD'], os.path.join(paths['IMAGE_PATH'], 'train'), retrain)
+create_tf_record(files['TEST_RECORD'], os.path.join(paths['IMAGE_PATH'], 'test'), retrain)
 
 # Copy default pipeline
 if not os.path.exists(files['PIPELINE_CONFIG']):
@@ -122,11 +167,7 @@ if not os.path.exists(files['PIPELINE_CONFIG']):
 
 
 # Generating model training command
-TRAINING_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'model_main_tf2.py')
-training_command = "python3 {} --model_dir={} --pipeline_config_path={} --num_train_steps=2000".format(TRAINING_SCRIPT, paths['CHECKPOINT_PATH'], files['PIPELINE_CONFIG'])
-print("To train model run: " + training_command)
-
+train_tf_custom_model()
 
 # Generating model metrics command
-metrics_command = "python3 {} --model_dir={} --pipeline_config_path={} --checkpoint_dir={}".format(TRAINING_SCRIPT, paths['CHECKPOINT_PATH'],files['PIPELINE_CONFIG'], paths['CHECKPOINT_PATH'])
-print("To check model metrics: " + metrics_command)
+eval_tf_custom_model()
