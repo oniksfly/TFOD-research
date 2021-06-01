@@ -7,13 +7,12 @@ import subprocess
 from git.repo.base import Repo
 from pathlib import Path
 from shutil import copyfile, rmtree
-from object_detection.utils import config_util
 from object_detection.protos import pipeline_pb2
 from google.protobuf import text_format
 
 CUSTOM_MODEL_NAME = "my_ssd_mobnet"
-PRETRAINED_MODEL_NAME = "ssd_mobilenet_v2_320x320_coco17_tpu-8"
-PRETRAINED_MODEL_URL = "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz"
+PRETRAINED_MODEL_NAME = "ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8"
+PRETRAINED_MODEL_URL = "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.tar.gz"
 LABELMAP_NAME = 'label_map.pbtxt'
 TF_RECORD_SCRIPT_NAME = "generate_tfrecord.py"
 
@@ -146,7 +145,6 @@ if not os.path.exists(files['PIPELINE_CONFIG']):
     )
 
     # Customize default pipeline
-    # config = config_util.get_configs_from_pipeline_file(files['PIPELINE_CONFIG'])
     pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
     with tf.io.gfile.GFile(files['PIPELINE_CONFIG'], "r") as f:
         proto_str = f.read()                                                                                                                                                                                                                                          

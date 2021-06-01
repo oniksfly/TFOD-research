@@ -147,3 +147,4 @@ share/
 /.vscode
 /Tensorflow
 .DS_Store
+/notebooks
