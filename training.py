@@ -1,15 +1,23 @@
 import os
 import tensorflow as tf
+from tensorflow.python.training.checkpoint_management import latest_checkpoint
 import wget
 import tarfile
 import sys
+import re
 import subprocess
+import numpy as np
 from git.repo.base import Repo
 from pathlib import Path
 from shutil import copyfile, rmtree
 from object_detection.protos import pipeline_pb2
 from object_detection.utils import config_util
+from object_detection.utils import label_map_util
+from object_detection.utils import visualization_utils as viz_utils
+from object_detection.builders import model_builder
 from google.protobuf import text_format
+from PIL import Image
+from matplotlib import pyplot as plt
 
 CUSTOM_MODEL_NAME = "my_ssd_mobnet"
 PRETRAINED_MODEL_NAME = "ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8"
@@ -85,6 +93,70 @@ def eval_tf_custom_model(override=False):
             "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
             "--checkpoint_dir=" + paths['CHECKPOINT_PATH']
         ])
+
+
+def load_train_model_from_checkpoint():
+    if not os.path.exists(os.path.join(paths['CHECKPOINT_PATH'], "checkpoint")):
+        print("No checkpoints found for custom model")
+        return
+
+    configs = config_util.get_configs_from_pipeline_file(files['PIPELINE_CONFIG'])
+    detection_model = model_builder.build(model_config=configs['model'], is_training=False)
+
+    checkpoint = tf.compat.v2.train.Checkpoint(model = detection_model)
+    latest_checkpoint = None
+    pattern = re.compile("^(ckpt-([\d+]))\.index")
+    for number in [ pattern.search(x)[2] for x in os.listdir(paths['CHECKPOINT_PATH']) if pattern.search(x) ]:
+        cuurent_checkpoint = latest_checkpoint if latest_checkpoint else 0
+        checkpoint_number = int(number)
+        if checkpoint_number > cuurent_checkpoint:
+            latest_checkpoint = checkpoint_number
+
+    if latest_checkpoint:
+        checkpoint.restore(os.path.join(paths['CHECKPOINT_PATH'], 'ckpt-' + str(latest_checkpoint))).expect_partial()
+    else:
+        print("No checkpoints found")
+
+    return detection_model
+
+def detect_object(model, image_tenzor):
+    image, shapes = model.preprocess(image_tenzor)
+    prediction = model.predict(image, shapes)
+    detections = model.postprocess(prediction, shapes)
+
+    return detections
+
+def detect_image(image: Image, model, categories_index) -> Image:
+    image_array = np.array(image)
+
+    input_tensor = tf.convert_to_tensor(np.expand_dims(image_array, 0), dtype=tf.float32)
+    detections = detect_object(model, input_tensor)
+
+    num_detections = int(detections.pop('num_detections'))
+
+    detections = { key: value[0, :num_detections].numpy() for key, value in detections.items() }
+
+    detections['num_detections'] = num_detections
+
+    detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
+
+    label_id_offset = 1
+
+    image_array_with_detections = image_array.copy()
+
+    viz_utils.visualize_boxes_and_labels_on_image_array(
+        image_array_with_detections,
+        detections['detection_boxes'],
+        detections['detection_classes'] + label_id_offset,
+        detections['detection_scores'],
+        categories_index,
+        use_normalized_coordinates=True,
+        max_boxes_to_draw=5,
+        min_score_thresh=.8,
+        agnostic_mode=False
+    )
+
+    return Image.fromarray(image_array_with_detections)
 
 # Remove previous trained model
 if retrain and os.path.exists(paths['CHECKPOINT_PATH']):
@@ -172,3 +244,12 @@ train_tf_custom_model(override=retrain)
 
 # Generating model metrics command
 eval_tf_custom_model(override=retrain)
+
+# Load train model
+model = load_train_model_from_checkpoint()
+
+categories_index = label_map_util.create_category_index_from_labelmap(files['LABELMAP'])
+
+image = Image.open('Tensorflow/workspace/images/test/thumbsup-e123356e-c248-11eb-832f-408d5c56ce21.jpg')
+detected = detect_image(image, model, categories_index)
+detected.show()
