@@ -244,12 +244,3 @@ train_tf_custom_model(override=retrain)
 
 # Generating model metrics command
 eval_tf_custom_model(override=retrain)
-
-# Load train model
-model = load_train_model_from_checkpoint()
-
-categories_index = label_map_util.create_category_index_from_labelmap(files['LABELMAP'])
-
-image = Image.open('Tensorflow/workspace/images/test/thumbsup-e123356e-c248-11eb-832f-408d5c56ce21.jpg')
-detected = detect_image(image, model, categories_index)
-detected.show()
