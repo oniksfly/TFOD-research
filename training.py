@@ -25,10 +25,14 @@ PRETRAINED_MODEL_URL = "http://download.tensorflow.org/models/object_detection/t
 LABELMAP_NAME = 'label_map.pbtxt'
 TF_RECORD_SCRIPT_NAME = "generate_tfrecord.py"
 
-retrain = False
-if len(sys.argv) > 0 and 'retrain' in sys.argv:
-    print("Model will be retrained")
-    retrain = True
+retrain, export = False, False
+if len(sys.argv) > 0:
+    if 'retrain' in sys.argv:
+        print("Model will be retrained")
+        retrain = True
+    if 'export' in sys.argv:
+        print("Model will be export")
+        export = True
 
 
 root_path = "Tensorflow"
@@ -37,7 +41,9 @@ paths = {
     "ANNOTATION_PATH": os.path.join(root_path, "workspace", 'annotations'),
     "PRETRAINED_MODEL_PATH": os.path.join(root_path, "workspace", "pre-trained-models"),
     "IMAGE_PATH": os.path.join(root_path, 'workspace','images'),
-    "CHECKPOINT_PATH": os.path.join(root_path, 'workspace', 'models', CUSTOM_MODEL_NAME)
+    "CHECKPOINT_PATH": os.path.join(root_path, 'workspace', 'models', CUSTOM_MODEL_NAME),
+    "OUTPUT_PATH": os.path.join(root_path, 'workspace', 'models', CUSTOM_MODEL_NAME, 'export'),
+    "OUTPUT_LITE_PATH": os.path.join(root_path, 'workspace', 'models', CUSTOM_MODEL_NAME, 'export_lite'),
 }
 
 files = {
@@ -158,6 +164,69 @@ def detect_image(image: Image, model, categories_index) -> Image:
 
     return Image.fromarray(image_array_with_detections)
 
+def model_export():
+    """
+    Export TF model
+    """
+
+    # Check if custom congig present
+    if not os.path.exists(files['PIPELINE_CONFIG']):
+        print("Custom model's piplene config missing")
+        return
+
+    export_script = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'exporter_main_v2.py')
+    # Check if custom congig present
+    if not os.path.exists(export_script):
+        print("Export script missing")
+        return
+
+    subprocess.call([
+        sys.executable, 
+        export_script, 
+        "--input_type=image_tensor",
+        "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
+        "--trained_checkpoint_dir=" + paths['CHECKPOINT_PATH'],
+        "--output_directory=" + paths['OUTPUT_PATH'],
+    ])
+
+def model_export_lite():
+    """
+    Export lite TF model
+    """
+
+    # Check if custom congig present
+    if not os.path.exists(files['PIPELINE_CONFIG']):
+        print("Custom model's piplene config missing")
+        return
+
+    export_script = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'export_tflite_graph_tf2.py')
+    # Check if custom congig present
+    if not os.path.exists(export_script):
+        print("Export script missing")
+        return
+
+    subprocess.call([
+        sys.executable, 
+        export_script, 
+        "--pipeline_config_path=" + files['PIPELINE_CONFIG'],
+        "--trained_checkpoint_dir=" + paths['CHECKPOINT_PATH'],
+        "--output_directory=" + paths['OUTPUT_LITE_PATH'],
+    ])
+
+    single_file = os.path.join(paths['OUTPUT_LITE_PATH'], 'saved_model', 'detect.tflite')
+
+    subprocess.call([
+        'tflite_convert', 
+        "--saved_model_dir=" + os.path.join(paths['OUTPUT_LITE_PATH'], 'saved_model'),
+        "--output_file=" + single_file,
+        "--input_shapes=1,300,300,3",
+        "--input_arrays=normalized_input_image_tensor",
+        "--output_arrays='TFLite_Detection_PostProcess','TFLite_Detection_PostProcess:1','TFLite_Detection_PostProcess:2','TFLite_Detection_PostProcess:3'",
+        "--inference_type=FLOAT",
+        "--allow_custom_ops",
+    ])
+
+
 # Remove previous trained model
 if retrain and os.path.exists(paths['CHECKPOINT_PATH']):
     print("Remove previously trained model at path " + paths['CHECKPOINT_PATH'])
@@ -244,3 +313,8 @@ train_tf_custom_model(override=retrain)
 
 # Generating model metrics command
 eval_tf_custom_model(override=retrain)
+
+# Export TF model
+if export:
+    model_export()
+    model_export_lite()
